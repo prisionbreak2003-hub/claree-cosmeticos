@@ -1,11 +1,3 @@
 .vercel
 node_modules
-
-# Conteúdo específico de cada produto (fotos e vídeos reais) —
-# não versionar em repo público. Cada novo produto entra com os seus.
-assets/*.webp
-assets/*.jpg
-assets/*.jpeg
-assets/*.png
-media/*.mp4
-!media/.gitkeep
+.env*

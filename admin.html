@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Clarée</title>
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:#FBFDFF;color:#2A1720;}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 20px;}
+  h1{font-size:22px;font-weight:800;margin:0 0 20px;}
+  .login-card{max-width:340px;margin:80px auto;background:#fff;border:1px solid #f0dce4;border-radius:16px;padding:28px;box-shadow:0 20px 50px -30px rgba(0,0,0,.3);}
+  label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;}
+  input{width:100%;font-family:inherit;padding:11px 13px;border:1.5px solid #f0dce4;border-radius:10px;font-size:14px;margin-bottom:14px;}
+  input:focus{outline:none;border-color:#e26c8e;}
+  button{font-family:inherit;font-weight:700;background:linear-gradient(135deg,#e26c8e,#c9557a);color:#fff;border:none;border-radius:10px;padding:12px 18px;cursor:pointer;font-size:14px;width:100%;}
+  button:hover{opacity:.92;}
+  button.outline{background:#fff;border:1.6px solid #2A1720;color:#2A1720;width:auto;padding:8px 12px;font-size:12px;}
+  button.primary-sm{width:auto;padding:8px 12px;font-size:12px;background:linear-gradient(135deg,#e26c8e,#c9557a);}
+  button.danger{background:#c81e1e;width:auto;padding:8px 12px;font-size:12px;}
+  .error{color:#c81e1e;font-size:13px;margin-bottom:10px;}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;font-size:13px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #f4e9ee;}
+  th{background:#fbeef2;font-weight:800;color:#c9557a;}
+  .badge{display:inline-block;padding:3px 8px;border-radius:100px;font-size:11px;font-weight:700;white-space:nowrap;}
+  .badge-pending_payment{background:#fff6e0;color:#8a6d00;}
+  .badge-paid{background:#e8f9ec;color:#078653;}
+  .badge-shipped{background:#e3f0ff;color:#0056b3;}
+  .badge-delivered{background:#e8f9ec;color:#078653;}
+  .badge-lost{background:#fdeaea;color:#c81e1e;}
+  .badge-refunded{background:#f3e8ff;color:#7c3aed;}
+  .badge-chargedback{background:#fdeaea;color:#c81e1e;}
+  .badge-refused{background:#f1f1f1;color:#666;}
+  .actions{display:flex;gap:6px;flex-wrap:wrap;}
+  #logout-btn{width:auto;padding:8px 14px;font-size:12px;background:#2A1720;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+  #hidden-area{display:none;}
+  .bulk-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13px;flex-wrap:wrap;}
+  .bulk-bar button{width:auto;padding:8px 14px;font-size:12px;}
+  .bulk-bar .count{color:#8A6B77;}
+  .filters{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .filters input,.filters select{width:auto;margin:0;padding:9px 12px}
+  .summary{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .sum-card{background:#fff;border:1px solid #f0dce4;border-radius:12px;padding:10px 16px;font-size:12px;color:#8A6B77}
+  .sum-card b{display:block;font-family:Georgia,serif;font-size:18px;color:#2A1720}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login-area">
+    <div class="login-card">
+      <h1>Painel Admin — Clarée</h1>
+      <p id="login-error" class="error"></p>
+      <label>Usuário</label>
+      <input id="user-input" type="text" autocomplete="username">
+      <label>Senha</label>
+      <input id="password-input" type="password" autocomplete="current-password">
+      <button id="login-btn">Entrar</button>
+    </div>
+  </div>
+
+  <div id="hidden-area">
+    <div class="topbar">
+      <h1>Pedidos — Clarée</h1>
+      <button id="logout-btn">Sair</button>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="filters">
+      <input id="search-input" type="text" placeholder="Buscar por nome, e-mail ou identificador...">
+      <select id="status-filter">
+        <option value="">Todos os status</option>
+        <option value="pending_payment">Aguardando pagamento</option>
+        <option value="paid">Pago</option>
+        <option value="shipped">Enviado</option>
+        <option value="delivered">Entregue</option>
+        <option value="lost">Extraviado</option>
+        <option value="refunded">Estornado</option>
+        <option value="chargedback">Chargeback</option>
+        <option value="refused">Recusado</option>
+      </select>
+    </div>
+    <div class="bulk-bar">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:700;margin:0"><input type="checkbox" id="select-all-cb" style="width:auto;margin:0"> Selecionar todos visíveis elegíveis</label>
+      <span class="count" id="selected-count">0 selecionados</span>
+      <button class="primary-sm" id="bulk-shipped-btn" disabled>Marcar Enviado</button>
+      <button class="outline" id="bulk-delivered-btn" disabled>Marcar Entregue</button>
+      <button class="danger" id="bulk-lost-btn" disabled>Marcar Extraviado</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th></th><th>Cliente</th><th>Kit</th><th>Total</th><th>Status</th><th>Criado em</th><th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="orders-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+var STATUS_LABEL = {
+  pending_payment: ['Aguardando pagamento', 'badge-pending_payment'],
+  paid: ['Pago', 'badge-paid'],
+  shipped: ['Enviado', 'badge-shipped'],
+  delivered: ['Entregue', 'badge-delivered'],
+  lost: ['Extraviado', 'badge-lost'],
+  refunded: ['Estornado', 'badge-refunded'],
+  chargedback: ['Chargeback', 'badge-chargedback'],
+  refused: ['Recusado', 'badge-refused'],
+};
+var allOrders = [];
+
+function fmtBRL(cents){ return 'R$ ' + (cents/100).toFixed(2).replace('.', ','); }
+function fmtDate(iso){ if(!iso) return '-'; return new Date(iso).toLocaleString('pt-BR'); }
+function daysSince(iso){ if (!iso) return null; return (Date.now() - new Date(iso).getTime()) / (1000*60*60*24); }
+
+function showApp(){
+  document.getElementById('login-area').style.display = 'none';
+  document.getElementById('hidden-area').style.display = 'block';
+  loadOrders();
+}
+
+function loadOrders(){
+  fetch('/api/admin/orders').then(function(r){
+    if (r.status === 401) { document.getElementById('login-area').style.display='block'; document.getElementById('hidden-area').style.display='none'; throw new Error('unauth'); }
+    return r.json();
+  }).then(function(data){
+    allOrders = data.orders;
+    renderSummary();
+    renderTable();
+  }).catch(function(){});
+}
+
+function renderSummary(){
+  var paidCount = 0, paidCents = 0, pendingCount = 0;
+  allOrders.forEach(function(o){
+    if (['paid','shipped','delivered'].indexOf(o.status) !== -1) { paidCount++; paidCents += o.total_cents; }
+    if (o.status === 'pending_payment') pendingCount++;
+  });
+  document.getElementById('summary').innerHTML =
+    '<div class="sum-card">Pedidos pagos<b>' + paidCount + '</b></div>' +
+    '<div class="sum-card">Faturamento<b>' + fmtBRL(paidCents) + '</b></div>' +
+    '<div class="sum-card">Aguardando pagamento<b>' + pendingCount + '</b></div>' +
+    '<div class="sum-card">Total de pedidos<b>' + allOrders.length + '</b></div>';
+}
+
+function renderTable(){
+  var q = document.getElementById('search-input').value.trim().toLowerCase();
+  var statusFilter = document.getElementById('status-filter').value;
+  var filtered = allOrders.filter(function(o){
+    if (statusFilter && o.status !== statusFilter) return false;
+    if (!q) return true;
+    return (o.customer_name||'').toLowerCase().indexOf(q) !== -1 ||
+           (o.customer_email||'').toLowerCase().indexOf(q) !== -1 ||
+           (o.identifier||'').toLowerCase().indexOf(q) !== -1;
+  });
+
+  var body = document.getElementById('orders-body');
+  body.innerHTML = '';
+  filtered.forEach(function(o){
+    var label = STATUS_LABEL[o.status] || [o.status, ''];
+    var tr = document.createElement('tr');
+    var actionHtml = '-';
+    var checkboxHtml = '';
+    var eligibleShip = o.status === 'paid';
+    var eligibleDeliver = o.status === 'shipped' && daysSince(o.shipped_at) !== null;
+
+    if (eligibleShip) {
+      checkboxHtml = '<input type="checkbox" class="row-cb" data-id="' + o.identifier + '" data-eligible="shipped">';
+      actionHtml = '<div class="actions"><button class="primary-sm" data-id="' + o.identifier + '" data-outcome="shipped">Marcar enviado</button></div>';
+    } else if (eligibleDeliver) {
+      checkboxHtml = '<input type="checkbox" class="row-cb" data-id="' + o.identifier + '" data-eligible="delivered_lost">';
+      actionHtml = '<div class="actions">' +
+        '<button class="outline" data-id="' + o.identifier + '" data-outcome="delivered">Entregue</button>' +
+        '<button class="danger" data-id="' + o.identifier + '" data-outcome="lost">Extraviado</button>' +
+        '</div>';
+    }
+
+    tr.innerHTML = '<td>' + checkboxHtml + '</td>' +
+      '<td>' + o.customer_name + '<br><span style="color:#8A6B77;font-size:11px">' + (o.customer_email||'') + '</span></td>' +
+      '<td>' + o.kit_name + '</td>' +
+      '<td>' + fmtBRL(o.total_cents) + '</td>' +
+      '<td><span class="badge ' + label[1] + '">' + label[0] + '</span></td>' +
+      '<td>' + fmtDate(o.created_at) + '</td>' +
+      '<td>' + actionHtml + '</td>';
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('button[data-outcome]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      var outcome = btn.getAttribute('data-outcome');
+      var labelMap = {shipped:'Enviado', delivered:'Entregue', lost:'Extraviado'};
+      if (!confirm('Confirmar pedido de ' + id + ' como "' + labelMap[outcome] + '"?')) return;
+      fetch('/api/admin/mark-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: id, outcome: outcome })
+      }).then(function(r){ return r.json(); }).then(function(){ loadOrders(); });
+    });
+  });
+
+  document.getElementById('select-all-cb').checked = false;
+  body.querySelectorAll('.row-cb').forEach(function(cb){ cb.addEventListener('change', updateBulkBar); });
+  updateBulkBar();
+}
+
+function getSelectedIds(eligible){
+  return Array.from(document.querySelectorAll('.row-cb:checked'))
+    .filter(function(cb){ return !eligible || cb.getAttribute('data-eligible') === eligible; })
+    .map(function(cb){ return cb.getAttribute('data-id'); });
+}
+
+function updateBulkBar(){
+  var total = getSelectedIds().length;
+  var shipIds = getSelectedIds('shipped');
+  var deliverIds = getSelectedIds('delivered_lost');
+  document.getElementById('selected-count').textContent = total + ' selecionados';
+  document.getElementById('bulk-shipped-btn').disabled = shipIds.length === 0;
+  document.getElementById('bulk-delivered-btn').disabled = deliverIds.length === 0;
+  document.getElementById('bulk-lost-btn').disabled = deliverIds.length === 0;
+}
+
+function bulkMark(outcome){
+  var eligible = outcome === 'shipped' ? 'shipped' : 'delivered_lost';
+  var ids = getSelectedIds(eligible);
+  if (!ids.length) return;
+  var labelMap = {shipped:'Enviado', delivered:'Entregue', lost:'Extraviado'};
+  if (!confirm('Confirmar ' + ids.length + ' pedido(s) como "' + labelMap[outcome] + '"?')) return;
+  fetch('/api/admin/mark-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifiers: ids, outcome: outcome })
+  }).then(function(r){ return r.json(); }).then(function(result){
+    if (result.failed && result.failed.length) {
+      alert('Alguns pedidos não puderam ser atualizados: ' + result.failed.join(', '));
+    }
+    loadOrders();
+  });
+}
+
+document.getElementById('select-all-cb').addEventListener('change', function(e){
+  document.querySelectorAll('.row-cb').forEach(function(cb){ cb.checked = e.target.checked; });
+  updateBulkBar();
+});
+document.getElementById('bulk-shipped-btn').addEventListener('click', function(){ bulkMark('shipped'); });
+document.getElementById('bulk-delivered-btn').addEventListener('click', function(){ bulkMark('delivered'); });
+document.getElementById('bulk-lost-btn').addEventListener('click', function(){ bulkMark('lost'); });
+document.getElementById('search-input').addEventListener('input', renderTable);
+document.getElementById('status-filter').addEventListener('change', renderTable);
+
+document.getElementById('login-btn').addEventListener('click', function(){
+  var user = document.getElementById('user-input').value;
+  var password = document.getElementById('password-input').value;
+  fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user: user, password: password })
+  }).then(function(r){
+    if (!r.ok) throw new Error('invalid');
+    showApp();
+  }).catch(function(){
+    document.getElementById('login-error').textContent = 'Usuário ou senha inválidos.';
+  });
+});
+
+document.getElementById('logout-btn').addEventListener('click', function(){
+  fetch('/api/admin/logout', { method: 'POST' }).then(function(){
+    document.getElementById('login-area').style.display = 'block';
+    document.getElementById('hidden-area').style.display = 'none';
+  });
+});
+
+// Tenta carregar direto (sessão pode já existir via cookie)
+fetch('/api/admin/orders').then(function(r){
+  if (r.ok) showApp();
+});
+</script>
+</body>
+</html>
