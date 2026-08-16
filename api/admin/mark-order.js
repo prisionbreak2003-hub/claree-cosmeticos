@@ -2,11 +2,14 @@ const { sql, ensureSchema } = require('../../lib/db');
 const { isAuthenticated } = require('../../lib/adminAuth');
 const { sendEmail } = require('../../lib/resend');
 
-async function markOne(identifier, outcome) {
+async function markOne(identifier, outcome, trackingCode, host) {
   let rows;
   if (outcome === 'shipped') {
-    rows = await sql`UPDATE orders SET status = 'shipped', shipped_at = now()
-                      WHERE identifier = ${identifier} AND status = 'paid' RETURNING *`;
+    rows = trackingCode
+      ? await sql`UPDATE orders SET status = 'shipped', shipped_at = now(), carrier_tracking_code = ${trackingCode}
+                  WHERE identifier = ${identifier} AND status = 'paid' RETURNING *`
+      : await sql`UPDATE orders SET status = 'shipped', shipped_at = now()
+                  WHERE identifier = ${identifier} AND status = 'paid' RETURNING *`;
   } else if (outcome === 'delivered') {
     rows = await sql`UPDATE orders SET status = 'delivered', delivered_at = now()
                       WHERE identifier = ${identifier} AND status = 'shipped' RETURNING *`;
@@ -18,6 +21,8 @@ async function markOne(identifier, outcome) {
   const order = rows[0];
   if (!order) return null;
 
+  const trackUrl = `https://${host}/rastreio.html?pedido=${encodeURIComponent(order.identifier)}`;
+
   if (order.customer_email) {
     if (outcome === 'shipped') {
       await sendEmail({
@@ -25,6 +30,8 @@ async function markOne(identifier, outcome) {
         subject: 'Seu kit Clarée saiu para entrega! 📦',
         html: `<p>Olá, ${order.customer_name}!</p>
                <p>Seu pedido <strong>${order.kit_name}</strong> já saiu para entrega.</p>
+               ${order.carrier_tracking_code ? `<p>Código de rastreio: <strong>${order.carrier_tracking_code}</strong></p>` : ''}
+               <p>Acompanhe a entrega a qualquer momento: <a href="${trackUrl}">${trackUrl}</a></p>
                <p>Equipe Clarée</p>`,
       });
     } else if (outcome === 'delivered') {
@@ -71,11 +78,16 @@ module.exports = async (req, res) => {
     }
   }
 
-  const { identifier, identifiers, outcome } = body || {};
+  const { identifier, identifiers, outcome, trackingCode } = body || {};
   const codes = Array.isArray(identifiers) ? identifiers : identifier ? [identifier] : [];
 
   if (!codes.length || !['shipped', 'delivered', 'lost'].includes(outcome)) {
     res.status(400).json({ error: 'invalid_params' });
+    return;
+  }
+  // Código de rastreio só faz sentido pra um pedido por vez (cada pacote tem o seu).
+  if (trackingCode && codes.length > 1) {
+    res.status(400).json({ error: 'tracking_code_requires_single_order' });
     return;
   }
 
@@ -85,7 +97,7 @@ module.exports = async (req, res) => {
   const failed = [];
   for (const code of codes) {
     try {
-      const order = await markOne(code, outcome);
+      const order = await markOne(code, outcome, trackingCode || null, req.headers.host);
       if (order) updated.push(order.identifier);
       else failed.push(code);
     } catch (err) {

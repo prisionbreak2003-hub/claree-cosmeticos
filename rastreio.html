@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acompanhar pedido — Clarée</title>
+<link href="assets/fonts.css" rel="stylesheet">
+<style>
+:root{--ac:#e26c8e;--ac-d:#c9557a;--ac-l:#fbeef2;--ink:#2A1720;--muted:#8A6B77;--bg:#FBFDFF;--border:#f0dce4;--ok:#16a34a;--serif:'Fraunces',Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px}
+.nav{background:#fff;border-bottom:1px solid var(--border)}
+.nav .wrap{display:flex;align-items:center;justify-content:center;height:60px}
+.brand{font-family:var(--serif);font-size:25px;font-weight:600}.brand span{color:var(--ac)}
+.head{text-align:center;padding:28px 16px 8px}
+.head h1{font-family:var(--serif);font-size:26px;font-weight:600}
+.head p{color:var(--muted);font-size:13.5px;margin-top:6px}
+.card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:24px;margin:16px 0;box-shadow:0 20px 50px -30px rgba(0,0,0,.25)}
+.field{display:flex;gap:8px}
+.field input{flex:1;border:1.5px solid var(--border);border-radius:12px;padding:13px 14px;font-size:15px;font-family:inherit;outline:none}
+.field input:focus{border-color:var(--ac)}
+.field button{background:linear-gradient(135deg,var(--ac),var(--ac-d));color:#fff;border:none;border-radius:12px;padding:0 20px;font-weight:800;cursor:pointer;font-family:inherit}
+.msg{font-size:13.5px;margin-top:10px}
+.msg.err{color:#c81e1e}
+.order-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.order-head b{font-family:var(--serif);font-size:19px}
+.order-head span{font-size:12px;color:var(--muted)}
+.kit-name{color:var(--muted);font-size:13.5px;margin-bottom:20px}
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-step{display:flex;gap:14px;position:relative;padding-bottom:26px}
+.tl-step:last-child{padding-bottom:0}
+.tl-dot{width:28px;height:28px;border-radius:50%;background:#f1e6ea;color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:800;z-index:1}
+.tl-step.done .tl-dot{background:var(--ok);color:#fff}
+.tl-step.current .tl-dot{background:linear-gradient(135deg,var(--ac),var(--ac-d));color:#fff;box-shadow:0 0 0 4px var(--ac-l)}
+.tl-line{position:absolute;left:14px;top:28px;bottom:0;width:2px;background:#f1e6ea}
+.tl-step.done .tl-line{background:var(--ok)}
+.tl-body b{display:block;font-size:14px}
+.tl-body span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.lost-box{background:#fdeaea;border:1px solid #f6c9c9;border-radius:14px;padding:14px 16px;margin-top:16px;font-size:13.5px;color:#8a1c1c}
+.tracking-box{background:var(--ac-l);border:1px dashed var(--ac);border-radius:14px;padding:14px 16px;margin-top:16px}
+.tracking-box .lbl{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ac-d);margin-bottom:4px}
+.tracking-box code{font-size:14px;font-weight:700;word-break:break-all}
+.ft{text-align:center;font-size:11.5px;color:var(--muted);padding:20px 16px 34px;line-height:1.6}
+</style>
+</head>
+<body>
+<nav class="nav"><div class="wrap"><div class="brand">Clarée<span>.</span></div></div></nav>
+<div class="head">
+  <h1>Acompanhar meu pedido</h1>
+  <p>Digite o código do seu pedido (enviado no e-mail de confirmação) ou use o link que você recebeu.</p>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="field">
+      <input id="codigo-input" type="text" placeholder="Ex: claree-1786165238370-3tkycr">
+      <button id="buscar-btn">Buscar</button>
+    </div>
+    <p class="msg err" id="erro-msg" style="display:none"></p>
+  </div>
+
+  <div class="card" id="resultado-card" style="display:none"></div>
+</div>
+<div class="ft">CLARÉE COSMÉTICOS LTDA · CNPJ 32.902.230/0001-32<br>Dúvidas? Chama no WhatsApp.</div>
+
+<script>
+var STEPS = [
+  { key: 'paid_at', label: 'Pagamento confirmado' },
+  { key: 'shipped_at', label: 'Pedido enviado' },
+  { key: 'delivered_at', label: 'Pedido entregue' },
+];
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function render(order) {
+  var card = document.getElementById('resultado-card');
+  var currentIdx = STEPS.reduce(function(acc, s, i) { return order[s.key] ? i : acc; }, -1);
+
+  var html = '<div class="order-head"><b>' + order.identifier + '</b><span>' + fmtDate(order.created_at) + '</span></div>';
+  html += '<div class="kit-name">' + order.kit_name + '</div>';
+
+  if (order.status === 'lost') {
+    html += '<div class="lost-box"><b>Identificamos um problema na entrega.</b><br>Nossa equipe já foi notificada e vai entrar em contato pra resolver isso com você.</div>';
+  } else if (order.status === 'pending_payment') {
+    html += '<div class="lost-box" style="background:#fff6e0;border-color:#f3e0a3;color:#8a6d00"><b>Aguardando confirmação do pagamento.</b><br>Assim que o PIX cair, essa página atualiza sozinha.</div>';
+  } else {
+    html += '<div class="timeline">';
+    STEPS.forEach(function(s, i) {
+      var done = i <= currentIdx;
+      var current = i === currentIdx;
+      html += '<div class="tl-step ' + (done ? 'done' : '') + ' ' + (current ? 'current' : '') + '">';
+      if (i < STEPS.length - 1) html += '<span class="tl-line"></span>';
+      html += '<span class="tl-dot">' + (done ? '✓' : (i + 1)) + '</span>';
+      html += '<div class="tl-body"><b>' + s.label + '</b><span>' + (order[s.key] ? fmtDate(order[s.key]) : 'Aguardando') + '</span></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    if (order.carrier_tracking_code) {
+      html += '<div class="tracking-box"><div class="lbl">Código de rastreio da transportadora</div><code>' + order.carrier_tracking_code + '</code></div>';
+    }
+  }
+
+  card.innerHTML = html;
+  card.style.display = 'block';
+}
+
+function buscar(codigo) {
+  var erroEl = document.getElementById('erro-msg');
+  var card = document.getElementById('resultado-card');
+  erroEl.style.display = 'none';
+  card.style.display = 'none';
+  if (!codigo) return;
+
+  fetch('/api/rastreio?pedido=' + encodeURIComponent(codigo)).then(function(r) {
+    if (r.status === 404) { erroEl.textContent = 'Pedido não encontrado. Confira o código e tente de novo.'; erroEl.style.display = 'block'; return null; }
+    return r.json();
+  }).then(function(data) {
+    if (data && data.order) render(data.order);
+  }).catch(function() {
+    erroEl.textContent = 'Erro ao buscar o pedido. Tente novamente.';
+    erroEl.style.display = 'block';
+  });
+}
+
+document.getElementById('buscar-btn').addEventListener('click', function() {
+  buscar(document.getElementById('codigo-input').value.trim());
+});
+document.getElementById('codigo-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') buscar(this.value.trim());
+});
+
+var codigoUrl = new URLSearchParams(location.search).get('pedido');
+if (codigoUrl) {
+  document.getElementById('codigo-input').value = codigoUrl;
+  buscar(codigoUrl);
+}
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
   await ensureSchema();
   const orders = await sql`
     SELECT identifier, transaction_id, customer_name, customer_email, customer_whatsapp,
-           kit_name, total_cents, status, created_at, paid_at, refunded_at, shipped_at, delivered_at, lost_at
+           kit_name, total_cents, status, created_at, paid_at, refunded_at, shipped_at, delivered_at, lost_at, carrier_tracking_code
     FROM orders
     ORDER BY created_at DESC
     LIMIT 300

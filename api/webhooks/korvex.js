@@ -89,12 +89,14 @@ module.exports = async (req, res) => {
         });
 
         if (event === 'TRANSACTION_PAID' && order.customer_email) {
+          const trackUrl = `https://${req.headers.host}/rastreio.html?pedido=${encodeURIComponent(order.identifier)}`;
           await sendEmail({
             to: order.customer_email,
             subject: 'Pagamento confirmado — seu kit Clarée já está sendo separado! 💗',
             html: `<p>Olá, ${order.customer_name}!</p>
                    <p>Recebemos a confirmação do seu pagamento via PIX. Seu pedido <strong>${order.kit_name}</strong> já está sendo separado e embalado com carinho.</p>
-                   <p>Assim que ele sair para entrega, você recebe um novo e-mail com a atualização.</p>
+                   <p>Você pode acompanhar cada etapa do seu pedido a qualquer momento por aqui: <a href="${trackUrl}">${trackUrl}</a></p>
+                   <p>Assim que ele sair para entrega, você recebe um novo e-mail com a atualização (e o código de rastreio, quando disponível).</p>
                    <p>Qualquer dúvida, é só chamar no WhatsApp.</p>
                    <p>Equipe Clarée</p>`,
           });

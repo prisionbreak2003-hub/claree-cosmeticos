@@ -90,7 +90,7 @@
       <table>
         <thead>
           <tr>
-            <th></th><th>Cliente</th><th>Kit</th><th>Total</th><th>Status</th><th>Criado em</th><th>Ação</th>
+            <th></th><th>Cliente</th><th>Kit</th><th>Total</th><th>Status</th><th>Rastreio</th><th>Criado em</th><th>Ação</th>
           </tr>
         </thead>
         <tbody id="orders-body"></tbody>
@@ -182,6 +182,7 @@ function renderTable(){
       '<td>' + o.kit_name + '</td>' +
       '<td>' + fmtBRL(o.total_cents) + '</td>' +
       '<td><span class="badge ' + label[1] + '">' + label[0] + '</span></td>' +
+      '<td style="font-size:11px;color:#8A6B77">' + (o.carrier_tracking_code || '-') + '</td>' +
       '<td>' + fmtDate(o.created_at) + '</td>' +
       '<td>' + actionHtml + '</td>';
     body.appendChild(tr);
@@ -192,11 +193,17 @@ function renderTable(){
       var id = btn.getAttribute('data-id');
       var outcome = btn.getAttribute('data-outcome');
       var labelMap = {shipped:'Enviado', delivered:'Entregue', lost:'Extraviado'};
+      var trackingCode = null;
+      if (outcome === 'shipped') {
+        trackingCode = prompt('Código de rastreio da transportadora (opcional — deixe em branco se ainda não tiver):', '');
+        if (trackingCode === null) return; // cancelou
+        trackingCode = trackingCode.trim();
+      }
       if (!confirm('Confirmar pedido de ' + id + ' como "' + labelMap[outcome] + '"?')) return;
       fetch('/api/admin/mark-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: id, outcome: outcome })
+        body: JSON.stringify({ identifier: id, outcome: outcome, trackingCode: trackingCode || undefined })
       }).then(function(r){ return r.json(); }).then(function(){ loadOrders(); });
     });
   });
